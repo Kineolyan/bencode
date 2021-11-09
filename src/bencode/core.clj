@@ -10,7 +10,8 @@
   "A netstring and bencode implementation for Clojure."
   {:author "Meikel Brandmeyer"}
   (:require [clojure.java.io :as io])
-  (:import [java.io ByteArrayOutputStream
+  (:import clojure.lang.RT
+           [java.io ByteArrayOutputStream
             EOFException
             InputStream
             IOException
@@ -431,3 +432,24 @@
           (if (zero? x)
             (recur (inc i))
             x))))))
+
+(defmulti <bytes (fn [input _] (class input)))
+
+(defmethod <bytes :default
+  [input _]
+  input)
+
+(defmethod <bytes (RT/classForName "[B")
+  [#^"[B" input f]
+  (f input))
+
+(defmethod <bytes clojure.lang.IPersistentVector
+  [input f]
+  (vec (map #(<bytes % f) input)))
+
+(defmethod <bytes clojure.lang.IPersistentMap
+  [input f]
+  (->> input
+       (map (fn [[k v]] [k (<bytes v f)]))
+       (into {})))
+

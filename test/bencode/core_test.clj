@@ -20,25 +20,9 @@
   [#^String input]
   (.getBytes input "UTF-8"))
 
-(defmulti #^{:private true} <bytes class)
-
-(defmethod <bytes :default
+(defn <bytes
   [input]
-  input)
-
-(defmethod <bytes (RT/classForName "[B")
-  [#^"[B" input]
-  (String. input "UTF-8"))
-
-(defmethod <bytes clojure.lang.IPersistentVector
-  [input]
-  (vec (map <bytes input)))
-
-(defmethod <bytes clojure.lang.IPersistentMap
-  [input]
-  (->> input
-       (map (fn [[k v]] [k (<bytes v)]))
-       (into {})))
+  (bencode/<bytes input #(String. % "UTF-8")))
 
 (defn- decode
   [bytes & {:keys [reader]}]
@@ -79,6 +63,13 @@
     "le"                    []
     "l6:cheesee"            ["cheese"]
     "l6:cheese3:ham4:eggse" ["cheese" "ham" "eggs"]))
+
+(deftest test-nested-list-reading
+  (are [x y] (= (>input x :reader read-bencode) y)
+    "llee"                    [[]]
+    "ll6:cheeseee"            [["cheese"]]
+    "l6:cheesel3:hame4:eggse" ["cheese" ["ham"] "eggs"]
+    "li1ei2el3:stree"         [1 2 ["str"]]))
 
 (deftest test-map-reading
   (are [x y] (= (>input x :reader read-bencode) y)
